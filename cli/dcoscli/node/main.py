@@ -27,7 +27,10 @@ def main():
     except DCOSException as e:
         emitter.publish(e)
         return 1
-
+    except docopt.DocoptExit as e:
+        emitter.publish("Command Not Recognised. Please see Usage")
+        emitter.publish(e)
+        return 1
 
 def _main():
     util.configure_logger_from_environ()
