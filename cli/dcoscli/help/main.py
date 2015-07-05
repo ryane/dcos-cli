@@ -14,21 +14,20 @@ import docopt
 from concurrent.futures import ThreadPoolExecutor
 from dcos import cmds, emitting, options, subcommand, util
 from dcos.errors import DCOSException
+from dcoscli.main import handle_docopt_error
 
 emitter = emitting.FlatEmitter()
 logger = util.get_logger(__name__)
 
 
+@handle_docopt_error
 def main():
     try:
         return _main()
     except DCOSException as e:
         emitter.publish(e)
         return 1
-    except docopt.DocoptExit as e:
-        emitter.publish("Command Not Recognised. Please see Usage")
-        emitter.publish(e)
-        return 1
+
 
 def _main():
     util.configure_logger_from_environ()

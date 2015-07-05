@@ -34,6 +34,7 @@ import os
 import signal
 import sys
 from subprocess import PIPE, Popen
+from functools import wraps
 
 import dcoscli
 import docopt
@@ -137,3 +138,24 @@ def signal_handler(signal, frame):
     emitter.publish(
         errors.DefaultError("User interrupted command with Ctrl-C"))
     sys.exit(0)
+
+
+def handle_docopt_error(func):
+    """Handle DocoptExit exception
+
+    :param func: function
+    :type func: function
+    :return: wrapped function
+    :rtype: function
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            result = func(*args, **kwargs)
+        except docopt.DocoptExit as e:
+            emitter.publish("Command Not Recognised. Please see Usage")
+            emitter.publish(e)
+            return 1
+        return result
+    return wrapper

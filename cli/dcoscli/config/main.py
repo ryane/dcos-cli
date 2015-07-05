@@ -34,20 +34,18 @@ import toml
 from dcos import (cmds, config, constants, emitting, http, jsonitem,
                   subcommand, util)
 from dcos.errors import DCOSException
-from dcoscli import analytics
+from dcoscli import analytics, main
+from dcoscli.main import handle_docopt_error
 
 emitter = emitting.FlatEmitter()
 logger = util.get_logger(__name__)
 
 
+@handle_docopt_error
 def main():
     try:
         return _main()
     except DCOSException as e:
-        emitter.publish(e)
-        return 1
-    except docopt.DocoptExit as e:
-        emitter.publish("Command Not Recognised. Please see Usage")
         emitter.publish(e)
         return 1
 

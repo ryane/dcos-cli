@@ -27,19 +27,16 @@ import docopt
 from dcos import cmds, emitting, mesos, util
 from dcos.errors import DCOSException
 from dcoscli import tables
+from dcoscli.main import handle_docopt_error
 
 logger = util.get_logger(__name__)
 emitter = emitting.FlatEmitter()
 
-
+@handle_docopt_error
 def main():
     try:
         return _main()
     except DCOSException as e:
-        emitter.publish(e)
-        return 1
-    except docopt.DocoptExit as e:
-        emitter.publish("Command Not Recognised. Please see Usage")
         emitter.publish(e)
         return 1
 
