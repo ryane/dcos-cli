@@ -68,6 +68,15 @@ def main():
         return 1
 
 
+def public_help():
+    """
+    :returns: __doc__ for this module
+    :rtype: str
+    """
+
+    return __doc__
+
+
 def _main():
     util.configure_logger_from_environ()
 
