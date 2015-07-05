@@ -34,7 +34,7 @@ import toml
 from dcos import (cmds, config, constants, emitting, http, jsonitem,
                   subcommand, util)
 from dcos.errors import DCOSException
-from dcoscli import analytics, main
+from dcoscli import analytics
 from dcoscli.main import handle_docopt_error
 
 emitter = emitting.FlatEmitter()
