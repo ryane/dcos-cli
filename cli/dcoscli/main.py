@@ -33,8 +33,8 @@ Environment Variables:
 import os
 import signal
 import sys
-from subprocess import PIPE, Popen
 from functools import wraps
+from subprocess import PIPE, Popen
 
 import dcoscli
 import docopt

@@ -32,6 +32,7 @@ from dcoscli.main import handle_docopt_error
 logger = util.get_logger(__name__)
 emitter = emitting.FlatEmitter()
 
+
 @handle_docopt_error
 def main():
     try:
@@ -39,6 +40,7 @@ def main():
     except DCOSException as e:
         emitter.publish(e)
         return 1
+
 
 def _main():
     util.configure_logger_from_environ()

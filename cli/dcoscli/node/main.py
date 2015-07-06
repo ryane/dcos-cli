@@ -30,6 +30,7 @@ def main():
         emitter.publish(e)
         return 1
 
+
 def _main():
     util.configure_logger_from_environ()
 
