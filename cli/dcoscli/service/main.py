@@ -48,6 +48,7 @@ def public_help():
 
     return __doc__
 
+
 def _main():
     util.configure_logger_from_environ()
 
