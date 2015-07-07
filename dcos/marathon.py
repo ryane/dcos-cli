@@ -110,9 +110,9 @@ class Client(object):
 
         return urllib.parse.urljoin(self._base_url, path)
 
-    def get_version(self):
-        """Get marathon version
-        :returns: marathon version
+    def get_package_version(self):
+        """Get marathon package version
+        :returns: marathon package version
         rtype: LooseVersion
         """
 
@@ -610,9 +610,9 @@ class Client(object):
         :rtype: json schema or None if endpoint doesn't exist
         """
 
-        version = self.get_version()
+        package_version = self.get_package_version()
         schema_version = LooseVersion("0.9.0")
-        if version < schema_version:
+        if package_version < schema_version:
             return None
 
         url = self._create_url('v2/schemas/app')
