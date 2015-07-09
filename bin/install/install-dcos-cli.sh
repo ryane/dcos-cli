@@ -4,7 +4,34 @@ set -o errexit -o pipefail
 
 usage()
 { # Show usage information.
-  echo "$(basename "$(test -L "$0" && readlink "$0" || echo "$0")") <installation-path> <dcos-url>"
+  echo "$(basename "$(test -L "$0" && readlink "$0" || echo "$0")") <installation-path> <dcos-url> [--add-path yes/no]"
+}
+
+add_dcos_path_to_profile()
+{
+    UNAME=`uname`
+    case "$UNAME" in
+        Linux ) RC_NAME=".bashrc";;
+        Darwin ) RC_NAME=".bash_profile";;
+        CYGWIN* ) RC_NAME=".bashrc";;
+        MINGW* ) RC_NAME=".profile";;
+        * ) RC_NAME=".bashrc";;
+    esac
+    echo "" >> ~/"$RC_NAME"
+    echo "# add the path to the DCOS binary to your bash profile" >> ~/"$RC_NAME"
+    echo "export PATH=$1:\$PATH" >> ~/"$RC_NAME"
+}
+
+prompt_add_dcos_path_to_profile()
+{
+    while true; do
+        read -p "Do you wish to add the path to the DCOS binary to your bash profile? [yes/no] " ANSWER
+        case "$ANSWER" in
+            [Yy]* ) add_dcos_path_to_profile "$1"; break;;
+            [Nn]* ) break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
 }
 
 if [ "$#" -lt 2 ]; then
@@ -53,6 +80,20 @@ dcos config set core.dcos_url $DCOS_URL
 dcos config set package.cache ~/.dcos/cache
 dcos config set package.sources '["https://github.com/mesosphere/universe/archive/version-1.x.zip"]'
 dcos package update
+
+ADD_PATH=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+            --add-path ) ADD_PATH="$2"; break;;
+            * ) shift;;
+    esac
+done
+
+case "$ADD_PATH" in
+    [Yy]* ) add_dcos_path_to_profile "$VIRTUAL_ENV_PATH/bin";;
+    [Nn]* ) ;;
+    * ) prompt_add_dcos_path_to_profile "$VIRTUAL_ENV_PATH/bin";;
+esac
 
 echo 'Finished installing and configuring DCOS CLI.'
 echo ''
