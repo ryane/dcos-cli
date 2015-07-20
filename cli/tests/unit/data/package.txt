@@ -1,2 +1,2 @@
- NAME        APP          COMMAND     DESCRIPTION                      
- helloworld  /helloworld  helloworld  Example DCOS application package 
+NAME        APP          COMMAND     DESCRIPTION                       
+helloworld  /helloworld  helloworld  Example DCOS application package  

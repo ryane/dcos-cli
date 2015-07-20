@@ -1,6 +1,6 @@
 import requests
 from dcos import util
-from dcos.errors import DCOSException
+from dcos.errors import DCOSException, DCOSHTTPException
 
 logger = util.get_logger(__name__)
 
@@ -14,33 +14,7 @@ def _default_is_success(status_code):
     :rtype: bool
     """
 
-    return status_code >= 200 and status_code < 300
-
-
-def _default_to_exception(response):
-    """
-    :param response: HTTP response object or Exception
-    :type response: requests.Response | Exception
-    :returns: exception
-    :rtype: Exception
-    """
-
-    if isinstance(response, Exception) and \
-       not isinstance(response, requests.exceptions.RequestException):
-        return response
-
-    if isinstance(response, requests.exceptions.ConnectionError):
-        return DCOSException('URL [{0}] is unreachable: {1}'
-                             .format(response.request.url, response))
-    elif isinstance(response, requests.exceptions.Timeout):
-        return DCOSException(
-            'Request to URL [{0}] timed out'.format(response.request.url))
-    elif isinstance(response, requests.exceptions.RequestException):
-        return response
-    else:
-        return DCOSException(
-            'Error while fetching [{0}]: HTTP {1}: {2}'.format(
-                response.request.url, response.status_code, response.reason))
+    return 200 <= status_code < 300
 
 
 @util.duration
@@ -48,7 +22,6 @@ def request(method,
             url,
             timeout=3.0,
             is_success=_default_is_success,
-            to_exception=_default_to_exception,
             **kwargs):
     """Sends an HTTP request.
 
@@ -83,8 +56,12 @@ def request(method,
     try:
         with requests.Session() as session:
             response = session.send(request.prepare(), timeout=timeout)
-    except Exception as ex:
-        raise to_exception(ex)
+    except requests.exceptions.ConnectionError as e:
+        raise DCOSException('URL [{0}] is unreachable: {1}'.format(
+            e.request.url, e))
+    except requests.exceptions.Timeout as e:
+        raise DCOSException('Request to URL [{0}] timed out.'.format(
+            e.request.url))
 
     logger.info('Received HTTP response [%r]: %r',
                 response.status_code,
@@ -93,10 +70,10 @@ def request(method,
     if is_success(response.status_code):
         return response
     else:
-        raise to_exception(response)
+        raise DCOSHTTPException(response)
 
 
-def head(url, to_exception=_default_to_exception, **kwargs):
+def head(url, **kwargs):
     """Sends a HEAD request.
 
     :param url: URL for the new Request object
@@ -110,7 +87,7 @@ def head(url, to_exception=_default_to_exception, **kwargs):
     return request('head', url, **kwargs)
 
 
-def get(url, to_exception=_default_to_exception, **kwargs):
+def get(url, **kwargs):
     """Sends a GET request.
 
     :param url: URL for the new Request object
@@ -121,11 +98,10 @@ def get(url, to_exception=_default_to_exception, **kwargs):
     :rtype: Response
     """
 
-    return request('get', url, to_exception=to_exception, **kwargs)
+    return request('get', url, **kwargs)
 
 
-def post(url, to_exception=_default_to_exception,
-         data=None, json=None, **kwargs):
+def post(url, data=None, json=None, **kwargs):
     """Sends a POST request.
 
     :param url: URL for the new Request object
@@ -140,11 +116,10 @@ def post(url, to_exception=_default_to_exception,
     :rtype: Response
     """
 
-    return request('post', url,
-                   to_exception=to_exception, data=data, json=json, **kwargs)
+    return request('post', url, data=data, json=json, **kwargs)
 
 
-def put(url, to_exception=_default_to_exception, data=None, **kwargs):
+def put(url, data=None, **kwargs):
     """Sends a PUT request.
 
     :param url: URL for the new Request object
@@ -157,10 +132,10 @@ def put(url, to_exception=_default_to_exception, data=None, **kwargs):
     :rtype: Response
     """
 
-    return request('put', url, to_exception=to_exception, data=data, **kwargs)
+    return request('put', url, data=data, **kwargs)
 
 
-def patch(url, to_exception=_default_to_exception, data=None, **kwargs):
+def patch(url, data=None, **kwargs):
     """Sends a PATCH request.
 
     :param url: URL for the new Request object
@@ -173,11 +148,10 @@ def patch(url, to_exception=_default_to_exception, data=None, **kwargs):
     :rtype: Response
     """
 
-    return request('patch', url,
-                   to_exception=to_exception, data=data, **kwargs)
+    return request('patch', url, data=data, **kwargs)
 
 
-def delete(url, to_exception=_default_to_exception, **kwargs):
+def delete(url, **kwargs):
     """Sends a DELETE request.
 
     :param url: URL for the new Request object
@@ -188,7 +162,7 @@ def delete(url, to_exception=_default_to_exception, **kwargs):
     :rtype: Response
     """
 
-    return request('delete', url, to_exception=to_exception, **kwargs)
+    return request('delete', url, **kwargs)
 
 
 def silence_requests_warnings():

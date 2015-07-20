@@ -2,7 +2,7 @@ import json
 from distutils.version import LooseVersion
 
 from dcos import http, util
-from dcos.errors import DCOSException
+from dcos.errors import DCOSException, DCOSHTTPException
 
 from six.moves import urllib
 
@@ -51,9 +51,6 @@ def _to_exception(response):
     :rtype: Exception
     """
 
-    if isinstance(response, Exception):
-        return DCOSException(_default_marathon_error(str(response)))
-
     if response.status_code == 400:
         return DCOSException(
             'Error while fetching [{0}]: HTTP {1}: {2}'.format(
@@ -77,7 +74,27 @@ def _to_exception(response):
         msg = '\n'.join(error['error'] for error in errs)
         return DCOSException(_default_marathon_error(msg))
 
-    return DCOSException('Error: {}'.format(response_json['message']))
+    return DCOSException('Error: {}'.format(message))
+
+
+def _http_req(fn, *args, **kwargs):
+    """Make an HTTP request, and raise a marathon-specific exception for
+    HTTP error codes.
+
+    :param fn: function to call
+    :type fn: function
+    :param args: args to pass to `fn`
+    :type args: [object]
+    :param kwargs: kwargs to pass to `fn`
+    :type kwargs: dict
+    :returns: `fn` return value
+    :rtype: object
+
+    """
+    try:
+        return fn(*args, **kwargs)
+    except DCOSHTTPException as e:
+        raise _to_exception(e.response)
 
 
 class Client(object):
@@ -127,7 +144,7 @@ class Client(object):
 
         url = self._create_url('v2/info')
 
-        response = http.get(url, to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         return response.json()
 
@@ -150,7 +167,7 @@ class Client(object):
             url = self._create_url(
                 'v2/apps{}/versions/{}'.format(app_id, version))
 
-        response = http.get(url, to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         # Looks like Marathon return different JSON for versions
         if version is None:
@@ -167,7 +184,10 @@ class Client(object):
 
         url = self._create_url('v2/groups')
 
-        response = http.get(url, to_exception=_to_exception)
+        try:
+            response = _http_req(http.get, url)
+        except DCOSHTTPException as e:
+            raise _to_exception(e.response)
 
         return response.json()['groups']
 
@@ -190,7 +210,7 @@ class Client(object):
             url = self._create_url(
                 'v2/groups{}/versions/{}'.format(group_id, version))
 
-        response = http.get(url, to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         return response.json()
 
@@ -217,7 +237,7 @@ class Client(object):
 
         url = self._create_url('v2/apps{}/versions'.format(app_id))
 
-        response = http.get(url, to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         if max_count is None:
             return response.json()['versions']
@@ -233,7 +253,7 @@ class Client(object):
 
         url = self._create_url('v2/apps')
 
-        response = http.get(url, to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         return response.json()['apps']
 
@@ -254,9 +274,7 @@ class Client(object):
         else:
             app_json = app_resource
 
-        response = http.post(url,
-                             json=app_json,
-                             to_exception=_to_exception)
+        response = _http_req(http.post, url, json=app_json)
 
         return response.json()
 
@@ -284,10 +302,9 @@ class Client(object):
 
         url = self._create_url('v2/{}{}'.format(url_endpoint, resource_id))
 
-        response = http.put(url,
-                            params=params,
-                            json=payload,
-                            to_exception=_to_exception)
+        response = _http_req(http.put, url,
+                             params=params,
+                             json=payload)
 
         return response.json().get('deploymentId')
 
@@ -343,10 +360,9 @@ class Client(object):
 
         url = self._create_url('v2/apps{}'.format(app_id))
 
-        response = http.put(url,
-                            params=params,
-                            json={'instances': int(instances)},
-                            to_exception=_to_exception)
+        response = _http_req(http.put, url,
+                             params=params,
+                             json={'instances': int(instances)})
 
         deployment = response.json()['deploymentId']
         return (deployment, None)
@@ -373,10 +389,9 @@ class Client(object):
 
         url = self._create_url('v2/groups{}'.format(group_id))
 
-        response = http.put(url,
-                            params=params,
-                            json={'scaleBy': float(scale_factor)},
-                            to_exception=_to_exception)
+        response = _http_req(http.put, url,
+                             params=params,
+                             json={'scaleBy': float(scale_factor)})
 
         deployment = response.json()['deploymentId']
         return (deployment, None)
@@ -413,7 +428,7 @@ class Client(object):
 
         url = self._create_url('v2/apps{}'.format(app_id))
 
-        http.delete(url, params=params, to_exception=_to_exception)
+        _http_req(http.delete, url, params=params)
 
     def remove_group(self, group_id, force=None):
         """Completely removes the requested application.
@@ -434,7 +449,7 @@ class Client(object):
 
         url = self._create_url('v2/groups{}'.format(group_id))
 
-        http.delete(url, params=params, to_exception=_to_exception)
+        _http_req(http.delete, url, params=params)
 
     def restart_app(self, app_id, force=None):
         """Performs a rolling restart of all of the tasks.
@@ -456,9 +471,7 @@ class Client(object):
 
         url = self._create_url('v2/apps{}/restart'.format(app_id))
 
-        response = http.post(url,
-                             params=params,
-                             to_exception=_to_exception)
+        response = _http_req(http.post, url, params=params)
 
         return response.json()
 
@@ -473,8 +486,7 @@ class Client(object):
 
         url = self._create_url('v2/deployments')
 
-        response = http.get(url,
-                            to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         deployment = next(
             (deployment for deployment in response.json()
@@ -494,7 +506,7 @@ class Client(object):
 
         url = self._create_url('v2/deployments')
 
-        response = http.get(url, to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         if app_id is not None:
             app_id = self.normalize_app_id(app_id)
@@ -528,10 +540,7 @@ class Client(object):
 
         url = self._create_url('v2/deployments/{}'.format(deployment_id))
 
-        response = http.delete(
-            url,
-            params=params,
-            to_exception=_to_exception)
+        response = _http_req(http.delete, url, params=params)
 
         if force:
             return None
@@ -570,7 +579,7 @@ class Client(object):
 
         url = self._create_url('v2/tasks')
 
-        response = http.get(url, to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         if app_id is not None:
             app_id = self.normalize_app_id(app_id)
@@ -594,7 +603,7 @@ class Client(object):
 
         url = self._create_url('v2/tasks')
 
-        response = http.get(url, to_exception=_to_exception)
+        response = _http_req(http.get, url)
 
         task = next(
             (task for task in response.json()['tasks']
@@ -616,7 +625,7 @@ class Client(object):
             return None
 
         url = self._create_url('v2/schemas/app')
-        response = http.get(url)
+        response = _http_req(http.get, url)
 
         return response.json()
 
@@ -647,7 +656,7 @@ class Client(object):
         else:
             group_json = group_resource
 
-        response = http.post(url, json=group_json, to_exception=_to_exception)
+        response = _http_req(http.post, url, json=group_json)
 
         return response.json()
 
@@ -659,7 +668,7 @@ class Client(object):
         """
 
         url = self._create_url('v2/leader')
-        response = http.get(url)
+        response = _http_req(http.get, url)
 
         return response.json()['leader']
 
